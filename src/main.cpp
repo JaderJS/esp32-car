@@ -252,14 +252,15 @@ void loop() {
   unsigned long now = millis();
   static unsigned long lastOtaUpdateMs = 0;
   if (otaFirmwareUrl.length() && now - lastOtaUpdateMs >= 20000) {
-    otaFirmwareUrl = "";
     lastOtaUpdateMs = now;
+    String url = otaFirmwareUrl; 
+    otaFirmwareUrl = "";
     Serial.println("[MY OTA]: Received firmware update, starting update and rebooting...");
-    wifiManager.updateOTA(otaFirmwareUrl);
+    wifiManager.updateOTA(url);
   }
 
   static unsigned long lastRunMs = 0;
-  if (now - lastRunMs >= 250) {
+  if (now - lastRunMs >= 150) {
     digitalWrite(PIN_LED, !digitalRead(PIN_LED));
     lastRunMs = now;
   }
