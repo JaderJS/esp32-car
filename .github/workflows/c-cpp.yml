@@ -44,8 +44,32 @@ jobs:
             VERSION: "0.0.${{ github.event.number }}"
         run: pio run
 
+      - name: Build filesystem
+        run: pio run -e esp32dev -t buildfs
+
+      - name: Prepare firmware
+        run: |
+          cp .pio/build/esp32dev/firmware.bin firmware.bin
+          cp .pio/build/esp32dev/littlefs.bin littlefs.bin || true
+
+      - name: Deploy latest.bin
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir public
+          cp firmware.bin public/latest.bin
+          cp littlefs.bin public/littlefs.bin || true
+
+      - name: Publish to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: firmware
-          path: .pio/build/**/firmware*.bin
+          path: |
+            .pio/build/**/firmware*.bin
+            .pio/build/**/littlefs*.bin
