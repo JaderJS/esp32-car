@@ -2,14 +2,17 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
 #include <ElegantOTA.h>
 #include <LittleFS.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <functional>
 #include <vector>
-#include <ESPmDNS.h>
-
+//
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
+#include <Update.h>
 
 struct WIFINetwork {
   String ssid;
@@ -56,6 +59,10 @@ public:
   bool addNetwork(const String &ssid, const String &pass, int priority = 10);
   bool removeNetwork(const String &ssid);
   void clearAllNetworks();
+
+  // OTA UPDATE MQTT
+  bool updateOTA(const String &url);
+  bool updateFileSystemOTA(const String &url);
 
 private:
   Preferences _prefs;

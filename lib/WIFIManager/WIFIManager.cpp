@@ -440,3 +440,35 @@ void WIFIManager::run() {
   }
   ElegantOTA.loop();
 }
+
+// MY UPDATE OTA
+bool WIFIManager::updateOTA(const String &url) {
+  if (!isOnline()) {
+    Serial.println("[WIFI MANAGER @MY OTA]: Without connection.");
+    return false;
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  httpUpdate.rebootOnUpdate(false);
+
+  Serial.println("[WIFI MANAGER @MY OTA]: Starting update firmware via my OTA.");
+  Serial.println(url);
+
+  t_httpUpdate_return res = httpUpdate.update(client, url);
+
+  if (res == HTTP_UPDATE_OK) {
+    Serial.println("[WIFI MANAGER @MY OTA]: Success to update!");
+    delay(1000);
+    ESP.restart();
+    return true;
+  } else if (res == HTTP_UPDATE_NO_UPDATES) {
+    Serial.println("[WIFI MANAGER @MY OTA]: Do not updated.");
+    return false;
+  } else if (res == HTTP_UPDATE_FAILED) {
+    Serial.printf("[WIFI MANAGER @MY OTA]: Erro - %s\n", httpUpdate.getLastErrorString().c_str());
+    return false;
+  }
+  return false;
+}

@@ -20,6 +20,7 @@ const char *mqttUser = "esp32@troller";
 const char *mqttPasswd = "pipa_papa3427";
 
 String topic = "car/" + String(ESP.getEfuseMac());
+String otaFirmwareUrl;
 
 WIFIManager wifiManager;
 Car car(33, 32, 27, 26, 15, 25, 36, 39);
@@ -66,6 +67,29 @@ void tempRun() {
 void onMqttMessage(char *topic_, char *payload, int retain, int qos, bool dup) {
   Serial.printf("[MQTT]: topic: %s | qos: %d | dup: %d | retain: %d \n", topic_, qos, dup, retain);
 
+  static unsigned long lastOtaCmdMs = 0;
+  if (strcasecmp((topic + "/ota").c_str(), topic_) == 0) {
+    if (millis() - lastOtaCmdMs < 15000) {
+      mqtt.publish((topic + "/status").c_str(), 0, 0, "DEBOUNCE");
+    }
+    lastOtaCmdMs = millis();
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, payload);
+
+    if (error) {
+      mqtt.publish((topic + "/ota/status").c_str(), 0, 0, "INVALID_JSON");
+      return;
+    }
+
+    otaFirmwareUrl = doc["firmware"] | "";
+
+    if (otaFirmwareUrl.isEmpty()) {
+      mqtt.publish((topic + "/ota/status").c_str(), 0, 0, "EMPTY_PAYLOAD");
+      return;
+    }
+  }
+
   if (strcasecmp((topic + "/cmd").c_str(), topic_) == 0) {
     if (strcasecmp(payload, "LOCK") == 0) {
       car.setState(State::LOCK);
@@ -76,14 +100,14 @@ void onMqttMessage(char *topic_, char *payload, int retain, int qos, bool dup) {
     } else {
       mqtt.publish((topic + "/cmd/status").c_str(), 0, 0, "CMD UNKNOW");
     }
-  } 
+  }
 
   if (strcasecmp((topic + "/rf/cmd").c_str(), topic_) == 0) {
     if (strcasecmp(payload, "LEARN_ON") == 0) {
       rf.setLearn(true);
       mqtt.publish((topic + "/rf/status").c_str(), 0, false, "LEARN_ON");
     } else if (strcasecmp(payload, "LEARN_OFF") == 0) {
-      rf.setLearn(false); 
+      rf.setLearn(false);
       mqtt.publish((topic + "/rf/status").c_str(), 0, false, "LEARN_OFF");
     } else {
       mqtt.publish((topic + "/rf/status").c_str(), 0, true, "WORK");
@@ -145,6 +169,7 @@ void taskMqtt(void *pvParameters) {
 
         mqtt.subscribe((topic + "/rf/cmd").c_str(), 0);
         mqtt.subscribe((topic + "/cmd").c_str(), 0);
+        mqtt.subscribe((topic + "/ota").c_str(), 0);
 
         mqtt.publish((topic + "/status").c_str(), 0, 0, "ONLINE");
         mqtt.publish((topic + "/ip").c_str(), 0, true, ip.c_str());
@@ -224,9 +249,18 @@ void setup() {
 
 void loop() {
 
+  unsigned long now = millis();
+  static unsigned long lastOtaUpdateMs = 0;
+  if (otaFirmwareUrl.length() && now - lastOtaUpdateMs >= 20000) {
+    otaFirmwareUrl = "";
+    lastOtaUpdateMs = now;
+    Serial.println("[MY OTA]: Received firmware update, starting update and rebooting...");
+    wifiManager.updateOTA(otaFirmwareUrl);
+  }
+
   static unsigned long lastRunMs = 0;
-  if (millis() - lastRunMs >= 2000) {
+  if (now - lastRunMs >= 250) {
     digitalWrite(PIN_LED, !digitalRead(PIN_LED));
-    lastRunMs = millis();
+    lastRunMs = now;
   }
 }
