@@ -30,3 +30,8 @@ jobs:
         with:
           name: firmware
           path: build/*/*.bin
+          
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/*/*.bin
